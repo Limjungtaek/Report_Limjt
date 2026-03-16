@@ -11,17 +11,14 @@ uploaded_file = st.file_uploader("A파일(엑셀)을 업로드하세요", type=[
 
 if uploaded_file:
     try:
-        # 2. 데이터 연산
+        # 2. 데이터 연산 (화면에 결과를 출력하는 st.write 제거)
         df = pd.read_excel(uploaded_file)
         result = df.iloc[:, 0].sum()
-        st.write(f"연산된 합계 값: {result}")
-
-        # 3. 템플릿 로드 (절대 경로 강제 지정)
-        # app.py가 위치한 폴더의 경로를 가져와서 templates 폴더를 찾습니다.
+        
+        # 3. 템플릿 로드
         base_path = os.path.dirname(os.path.abspath(__file__))
         template_path = os.path.join(base_path, "templates", "template_B.xlsx")
-
-
+        
         if os.path.exists(template_path):
             wb = load_workbook(template_path)
             ws = wb.active
@@ -43,7 +40,7 @@ if uploaded_file:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         else:
-            st.error(f"템플릿 파일을 찾을 수 없습니다: {template_path}")
+            st.error(f"템플릿 파일을 찾을 수 없습니다.")
             
     except Exception as e:
         st.error(f"오류가 발생했습니다: {e}")
