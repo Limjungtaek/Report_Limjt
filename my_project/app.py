@@ -24,7 +24,7 @@ if uploaded_file:
             if os.path.exists(template_path):
                 wb = load_workbook(template_path)
                 ws = wb.active
-                ws['B2'] = result
+
                 
                 # 메모리에서 엑셀 파일 생성
                 output = io.BytesIO()
