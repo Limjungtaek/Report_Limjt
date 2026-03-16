@@ -11,16 +11,16 @@ uploaded_file = st.file_uploader("A파일(엑셀)을 업로드하세요", type=[
 if uploaded_file:
     with st.spinner('파일을 연산 중입니다...'):
         try:
-            # 1. 첫 번째 시트 읽기
-            # header=None으로 설정하여 행/열 번호로 직접 접근
+            # 1. 첫 번째 시트 읽기 (D열은 인덱스 3)
             df = pd.read_excel(uploaded_file, sheet_name=0, header=None)
             
-            # 2. I열(인덱스 8)의 6행(인덱스 5)부터 10000행(인덱스 9999)까지 추출
-            # .iloc[5:10000, 8]
-            target_data = df.iloc[5:10000, 8]
+            # 2. D열(인덱스 3)의 6행(인덱스 5)부터 10000행(인덱스 9999)까지 추출
+            target_range = df.iloc[5:10000, 3]
             
-            # 3. COUNTA와 동일하게 동작 (비어 있지 않은 셀 개수 카운트)
-            result = target_data.count()
+            # 3. '정상'과 '폐업'인 행의 개수 세기
+            # astype(str)로 문자로 변환 후 비교하여 정확도 향상
+            count_normal = (target_range.astype(str).str.strip() == '정상').sum()
+            count_closed = (target_range.astype(str).str.strip() == '폐업').sum()
             
             # 4. 템플릿 로드
             base_path = os.path.dirname(os.path.abspath(__file__))
@@ -30,8 +30,9 @@ if uploaded_file:
                 wb = load_workbook(template_path)
                 ws = wb.active
                 
-                # B7 셀에 카운트 결과 기록
-                ws['B7'] = result
+                # B7에 '정상' 개수, F7에 '폐업' 개수 기록
+                ws['B7'] = count_normal
+                ws['F7'] = count_closed
                 
                 # 5. 메모리에서 엑셀 파일 생성
                 output = io.BytesIO()
