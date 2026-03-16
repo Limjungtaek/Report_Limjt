@@ -11,18 +11,25 @@ uploaded_file = st.file_uploader("A파일(엑셀)을 업로드하세요", type=[
 if uploaded_file:
     with st.spinner('파일을 연산 중입니다...'):
         try:
-            # 1. 첫 번째 시트 읽기 (D열은 인덱스 3)
+            # 1. 데이터 읽기 (header=None으로 하여 첫 행부터 데이터로 인식)
             df = pd.read_excel(uploaded_file, sheet_name=0, header=None)
             
-            # 2. D열(인덱스 3)의 6행(인덱스 5)부터 10000행(인덱스 9999)까지 추출
+            # 2. D열(인덱스 3)의 6행(인덱스 5)부터 10000행까지
             target_range = df.iloc[5:10000, 3]
             
-            # 3. '정상'과 '폐업'인 행의 개수 세기
-            # astype(str)로 문자로 변환 후 비교하여 정확도 향상
-            count_normal = (target_range.astype(str).str.strip() == '정상').sum()
-            count_closed = (target_range.astype(str).str.strip() == '폐업').sum()
+            # [디버깅] 실제 데이터 확인용 (화면에 출력)
+            st.write("D열 6행부터의 실제 데이터 샘플:", target_range.head(10).tolist())
             
-            # 4. 템플릿 로드
+            # 3. 데이터 카운팅
+            # 데이터 타입을 문자열로 통일하고 공백 제거
+            clean_data = target_range.astype(str).str.strip()
+            
+            count_normal = (clean_data == '정상').sum()
+            count_closed = (clean_data == '폐업').sum()
+            
+            st.write(f"카운트 결과 - 정상: {count_normal}, 폐업: {count_closed}")
+
+            # 4. 템플릿 로드 및 저장
             base_path = os.path.dirname(os.path.abspath(__file__))
             template_path = os.path.join(base_path, "templates", "template_B.xlsx")
             
@@ -30,23 +37,15 @@ if uploaded_file:
                 wb = load_workbook(template_path)
                 ws = wb.active
                 
-                # B7에 '정상' 개수, F7에 '폐업' 개수 기록
                 ws['B7'] = count_normal
                 ws['F7'] = count_closed
                 
-                # 5. 메모리에서 엑셀 파일 생성
                 output = io.BytesIO()
                 wb.save(output)
                 output.seek(0)
                 
-                # 6. 다운로드 버튼
                 download_name = f"{os.path.splitext(uploaded_file.name)[0]}_Report.xlsx"
-                st.download_button(
-                    label="결과 파일 다운로드",
-                    data=output,
-                    file_name=download_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                st.download_button("결과 파일 다운로드", output, download_name)
             else:
                 st.error("템플릿 파일을 찾을 수 없습니다.")
                 
