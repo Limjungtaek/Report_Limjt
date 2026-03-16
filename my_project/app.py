@@ -13,29 +13,30 @@ if uploaded_file:
     try:
         # 2. 데이터 연산
         df = pd.read_excel(uploaded_file)
-        result = df.iloc[:, 0].sum()  # 첫 번째 열의 합계
+        result = df.iloc[:, 0].sum()
         st.write(f"연산된 합계 값: {result}")
 
-        # 3. 템플릿 로드 (상대 경로 사용)
-        template_path = os.path.join("templates", "template_B.xlsx")
+        # 3. 템플릿 로드 (절대 경로 강제 지정)
+        # app.py가 위치한 폴더의 경로를 가져와서 templates 폴더를 찾습니다.
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(base_path, "templates", "template_B.xlsx")
         
+        st.write(f"디버깅용 경로 확인: {template_path}") # 에러 확인용
+
         if os.path.exists(template_path):
             wb = load_workbook(template_path)
             ws = wb.active
-            
-            # 특정 셀(B2)에 값 기록
             ws['B2'] = result
             
-            # 4. 메모리에서 엑셀 파일 생성 (서버 파일 생성 방지)
+            # 4. 메모리에서 엑셀 파일 생성
             output = io.BytesIO()
             wb.save(output)
             output.seek(0)
             
-            # 5. 다운로드 파일 이름 설정 (파일명_Report.xlsx)
+            # 5. 다운로드 버튼
             base_name = os.path.splitext(uploaded_file.name)[0]
             download_name = f"{base_name}_Report.xlsx"
             
-            # 다운로드 버튼
             st.download_button(
                 label="결과 파일 다운로드",
                 data=output,
