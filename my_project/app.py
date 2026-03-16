@@ -11,17 +11,12 @@ uploaded_file = st.file_uploader("A파일(엑셀)을 업로드하세요", type=[
 
 if uploaded_file:
     try:
-        # 2. 데이터 연산
-        df = pd.read_excel(uploaded_file)
-        result = df.iloc[:, 0].sum()
-        st.write(f"연산된 합계 값: {result}")
 
         # 3. 템플릿 로드 (절대 경로 강제 지정)
         # app.py가 위치한 폴더의 경로를 가져와서 templates 폴더를 찾습니다.
         base_path = os.path.dirname(os.path.abspath(__file__))
         template_path = os.path.join(base_path, "templates", "template_B.xlsx")
-        
-        st.write(f"디버깅용 경로 확인: {template_path}") # 에러 확인용
+
 
         if os.path.exists(template_path):
             wb = load_workbook(template_path)
