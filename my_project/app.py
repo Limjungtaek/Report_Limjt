@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 st.title("엑셀 데이터 연산 및 다운로드 서비스")
 
-uploaded_file = st.file_uploader("A파일(엑셀)을 업로드하세요", type=["xlsx"])
+uploaded_file = st.file_uploader("관리파일_YYYYMMDD을 업로드하세요", type=["xlsx"])
 
 if uploaded_file:
     with st.spinner('28행과 30행 데이터를 포함하여 보고서를 생성 중입니다...'):
