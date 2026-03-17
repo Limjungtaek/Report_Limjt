@@ -66,4 +66,16 @@ if uploaded_file:
                     key_j = str(ws[f'J{row_num}'].value).strip() if ws[f'J{row_num}'].value else ""
                     if key_j:
                         ws[f'K{row_num}'] = s2_total_counts.get(key_j, 0) # 전체
-                        ws[f
+                        ws[f'L{row_num}'] = s2_out_counts.get(key_j, 0)   # 출고
+                        ws[f'M{row_num}'] = s2_hold_counts.get(key_j, 0)  # 보유
+                
+                output = io.BytesIO()
+                wb.save(output)
+                output.seek(0)
+                
+                download_name = f"{os.path.splitext(uploaded_file.name)[0]}_Report.xlsx"
+                st.download_button("결과 파일 다운로드", output, download_name)
+            else:
+                st.error("템플릿 파일을 찾을 수 없습니다.")
+        except Exception as e:
+            st.error(f"오류가 발생했습니다: {e}")
