@@ -66,4 +66,8 @@ if uploaded_file:
                 output.seek(0)
                 
                 download_name = f"{os.path.splitext(uploaded_file.name)[0]}_Report.xlsx"
-                st.download_button("결과 파일 다운로드", output, download
+                st.download_button("결과 파일 다운로드", output, download_name)
+            else:
+                st.error("템플릿 파일을 찾을 수 없습니다.")
+        except Exception as e:
+            st.error(f"오류가 발생했습니다: {e}")
