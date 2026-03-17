@@ -6,15 +6,19 @@ import io
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+# 페이지 설정
+st.set_page_config(page_title="엑셀 데이터 연산 서비스", layout="wide")
+
 st.title("엑셀 데이터 연산 및 다운로드 서비스")
 
-uploaded_file = st.file_uploader("관리파일_YYYYMMDD을 업로드하세요", type=["xlsx"])
+# --- 강조된 업로드 안내 영역 ---
+st.markdown('<p style="background-color: #FFFF00; color: black; font-weight: bold; padding: 12px; border-radius: 8px; font-size: 18px; border: 1px solid #CCAC00;">📂 관리파일_YYYYMMDD을 업로드하세요</p>', unsafe_allow_html=True)
+uploaded_file = st.file_uploader("", type=["xlsx"])
 
 if uploaded_file:
-    with st.spinner('28행과 30행 데이터를 포함하여 보고서를 생성 중입니다...'):
+    with st.spinner('데이터를 분석하고 보고서를 생성하는 중입니다...'):
         try:
             # 1. 인풋 파일 읽기
-            # 데이터 위치 파악을 위해 header=None으로 읽음
             df_sheet1 = pd.read_excel(uploaded_file, sheet_name=0, header=None)
             df_sheet2 = pd.read_excel(uploaded_file, sheet_name=1, header=None)
             
@@ -23,27 +27,29 @@ if uploaded_file:
             install_dates = pd.to_datetime(df_sheet1.iloc[:, 7], errors='coerce')
             
             # AA2 ~ AL2 데이터 (AA는 26번째 열, 인덱스 26 / 2행은 인덱스 1)
-            # AA(26), AB(27), AC(28) ... AL(37)
             row2_values = df_sheet1.iloc[1, 26:38].values 
 
-            # 시트1 요약용
+            # 시트1 요약용 데이터 추출
             data_s1 = df_sheet1.iloc[:, [3, 4]].copy()
             data_s1.columns = ['status', 'item_name']
             data_s1['status'] = data_s1['status'].astype(str).str.strip()
             data_s1['item_name'] = data_s1['item_name'].astype(str).str.strip()
+            
             s1_normal_counts = data_s1[data_s1['status'] == '정상']['item_name'].value_counts()
             s1_closed_counts = data_s1[data_s1['status'] == '폐업']['item_name'].value_counts()
 
-            # 시트2 집계
+            # 시트2 집계 데이터 추출
             data_s2 = df_sheet2.iloc[:, [3, 13, 14, 15, 17]].copy()
             data_s2.columns = ['item_d', 'item_n', 'sum_value', 'status', 'item_r']
             for col in ['item_d', 'item_n', 'status', 'item_r']:
                 data_s2[col] = data_s2[col].astype(str).str.strip()
             data_s2['sum_value'] = pd.to_numeric(data_s2['sum_value'], errors='coerce').fillna(0)
             
+            # 포함(Contains) 조건 설정
             is_out = data_s2['status'].str.contains('출고', na=False)
             is_hold = data_s2['status'].str.contains('보유', na=False)
 
+            # 집계 사전 생성
             s2_d_total = data_s2['item_d'].value_counts()
             s2_d_out = data_s2[is_out]['item_d'].value_counts()
             s2_d_hold = data_s2[is_hold]['item_d'].value_counts()
@@ -98,7 +104,6 @@ if uploaded_file:
 
                 # --- [28행 데이터 기입 (AA2~AL2)] ---
                 for i, val in enumerate(row2_values):
-                    # C열(3)부터 시작
                     ws.cell(row=28, column=3 + i).value = val
 
                 # --- [30행 설치연월 집계] ---
@@ -109,13 +114,17 @@ if uploaded_file:
                              (install_dates.dt.month == target_month.month)).sum()
                     ws.cell(row=30, column=3 + i).value = count
                 
+                # 수식 계산 엔진 활성화 (스타일 보존에 도움)
+                wb.calculation.calcMode = 'auto'
+                
                 output = io.BytesIO()
                 wb.save(output)
                 output.seek(0)
                 
                 download_name = f"{os.path.splitext(uploaded_file.name)[0]}_Report.xlsx"
-                st.download_button("결과 파일 다운로드", output, download_name)
+                st.success("✅ 보고서 생성이 완료되었습니다!")
+                st.download_button("📊 결과 파일 다운로드", output, download_name)
             else:
-                st.error("템플릿 파일을 찾을 수 없습니다.")
+                st.error("❌ 템플릿 파일(template_B.xlsx)을 찾을 수 없습니다.")
         except Exception as e:
-            st.error(f"오류가 발생했습니다: {e}")
+            st.error(f"⚠️ 오류가 발생했습니다: {e}")
