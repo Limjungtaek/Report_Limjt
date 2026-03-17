@@ -12,7 +12,7 @@ st.set_page_config(page_title="보고서 연산", layout="wide")
 st.title("엑셀 데이터 보고서 연산")
 
 # --- 강조된 업로드 안내 영역 ---
-st.markdown('<p style="background-color: #FFFF00; color: black; font-weight: bold; padding: 12px; border-radius: 8px; font-size: 18px; border: 1px solid #CCAC00;">📂 포트폴리오(관리파일_YYYYMMDD)를 업로드해주세요.</p>', unsafe_allow_html=True)
+st.markdown('<p style="background-color: #FFFF00; color: black; font-weight: bold; padding: 12px; border-radius: 8px; font-size: 18px; border: 1px solid #CCAC00;">📂 포트폴리오 엑셀파일(관리파일_YYYYMMDD)을 업로드해주세요.</p>', unsafe_allow_html=True)
 uploaded_file = st.file_uploader("", type=["xlsx"])
 
 if uploaded_file:
