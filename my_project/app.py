@@ -9,39 +9,32 @@ st.title("엑셀 데이터 연산 및 다운로드 서비스")
 uploaded_file = st.file_uploader("A파일(엑셀)을 업로드하세요", type=["xlsx"])
 
 if uploaded_file:
-    with st.spinner('모든 조건을 집계하여 보고서를 생성 중입니다...'):
+    with st.spinner('시트 1과 시트 2의 데이터를 통합 집계 중입니다...'):
         try:
             # 1. 인풋 파일 읽기
             df_sheet1 = pd.read_excel(uploaded_file, sheet_name=0, header=None)
             df_sheet2 = pd.read_excel(uploaded_file, sheet_name=1, header=None)
             
-            # --- [시트1 기초 연산] B7, D7, F7용 (D열 기준) ---
-            target_d = df_sheet1.iloc[5:10000, 3] 
-            count_total_d = target_d.count()
-            clean_d = target_d.astype(str).str.strip()
-            count_normal = len(clean_d[clean_d == '정상'])
-            count_closed = len(clean_d[clean_d == '폐업'])
+            # --- [시트1 집계 로직] (B, D, E, F열 관련) ---
+            data_s1 = df_sheet1.iloc[:, [3, 4]].copy()
+            data_s1.columns = ['status', 'item_name']
+            data_s1['status'] = data_s1['status'].astype(str).str.strip()
+            data_s1['item_name'] = data_s1['item_name'].astype(str).str.strip()
             
-            # --- [시트2 기초 연산] J7, L7, N7용 (P열 기준) ---
-            target_p = df_sheet2.iloc[4:10000, 15] 
-            count_total_p = target_p.count()
-            clean_p = target_p.astype(str).str.strip()
-            count_out = len(clean_p[clean_p == '출고'])
-            count_hold = len(clean_p[clean_p == '보유'])
+            s1_total_counts = data_s1['item_name'].value_counts()
+            s1_normal_counts = data_s1[data_s1['status'] == '정상']['item_name'].value_counts()
+            s1_closed_counts = data_s1[data_s1['status'] == '폐업']['item_name'].value_counts()
+
+            # --- [시트2 집계 로직] (J, K, L, M열 관련) ---
+            # D열(인덱스 3: 항목명), P열(인덱스 15: 상태) 추출
+            data_s2 = df_sheet2.iloc[:, [3, 15]].copy()
+            data_s2.columns = ['item_name', 'status']
+            data_s2['item_name'] = data_s2['item_name'].astype(str).str.strip()
+            data_s2['status'] = data_s2['status'].astype(str).str.strip()
             
-            # --- [11~15행 상세 집계 로직] ---
-            # D열(인덱스 3: 상태), E열(인덱스 4: 항목명) 추출
-            data_subset = df_sheet1.iloc[:, [3, 4]].copy()
-            data_subset.columns = ['status', 'item_name']
-            data_subset['status'] = data_subset['status'].astype(str).str.strip()
-            data_subset['item_name'] = data_subset['item_name'].astype(str).str.strip()
-            
-            # (1) 항목별 전체 개수 (D열용)
-            total_item_counts = data_subset['item_name'].value_counts()
-            # (2) '정상'인 항목 개수 (E열용)
-            normal_counts = data_subset[data_subset['status'] == '정상']['item_name'].value_counts()
-            # (3) '폐업'인 항목 개수 (F열용)
-            closed_counts = data_subset[data_subset['status'] == '폐업']['item_name'].value_counts()
+            s2_total_counts = data_s2['item_name'].value_counts()
+            s2_out_counts = data_s2[data_s2['status'] == '출고']['item_name'].value_counts()
+            s2_hold_counts = data_s2[data_s2['status'] == '보유']['item_name'].value_counts()
 
             # 2. 템플릿 처리
             base_path = os.path.dirname(os.path.abspath(__file__))
@@ -51,29 +44,26 @@ if uploaded_file:
                 wb = load_workbook(template_path)
                 ws = wb.active
                 
-                # 상단 요약 셀 기입
-                ws['B7'], ws['D7'], ws['F7'] = count_total_d, count_normal, count_closed
-                ws['J7'], ws['L7'], ws['N7'] = count_total_p, count_out, count_hold
+                # 상단 요약 셀 (기존 로직 유지)
+                ws['B7'] = df_sheet1.iloc[5:10000, 3].count()
+                ws['D7'] = (df_sheet1.iloc[5:10000, 3].astype(str).str.strip() == '정상').sum()
+                ws['F7'] = (df_sheet1.iloc[5:10000, 3].astype(str).str.strip() == '폐업').sum()
                 
-                # --- 11행 ~ 15행 상세 기입 (D, E, F열 모두 포함) ---
+                ws['J7'] = df_sheet2.iloc[4:10000, 15].count()
+                ws['L7'] = (df_sheet2.iloc[4:10000, 15].astype(str).str.strip() == '출고').sum()
+                ws['N7'] = (df_sheet2.iloc[4:10000, 15].astype(str).str.strip() == '보유').sum()
+                
+                # --- [11~15행 상세 기입] ---
                 for row_num in range(11, 16):
-                    search_key = str(ws[f'B{row_num}'].value).strip() if ws[f'B{row_num}'].value else ""
+                    # 왼쪽 영역 (B열 기준 -> D, E, F 채우기)
+                    key_b = str(ws[f'B{row_num}'].value).strip() if ws[f'B{row_num}'].value else ""
+                    if key_b:
+                        ws[f'D{row_num}'] = s1_total_counts.get(key_b, 0)
+                        ws[f'E{row_num}'] = s1_normal_counts.get(key_b, 0)
+                        ws[f'F{row_num}'] = s1_closed_counts.get(key_b, 0)
                     
-                    if search_key: # B열에 값이 있을 때만 작동
-                        # D열: 전체 개수
-                        ws[f'D{row_num}'] = total_item_counts.get(search_key, 0)
-                        # E열: 정상 개수
-                        ws[f'E{row_num}'] = normal_counts.get(search_key, 0)
-                        # F열: 폐업 개수
-                        ws[f'F{row_num}'] = closed_counts.get(search_key, 0)
-                
-                output = io.BytesIO()
-                wb.save(output)
-                output.seek(0)
-                
-                download_name = f"{os.path.splitext(uploaded_file.name)[0]}_Report.xlsx"
-                st.download_button("결과 파일 다운로드", output, download_name)
-            else:
-                st.error("템플릿 파일을 찾을 수 없습니다.")
-        except Exception as e:
-            st.error(f"오류가 발생했습니다: {e}")
+                    # 오른쪽 영역 (J열 기준 -> K, L, M 채우기)
+                    key_j = str(ws[f'J{row_num}'].value).strip() if ws[f'J{row_num}'].value else ""
+                    if key_j:
+                        ws[f'K{row_num}'] = s2_total_counts.get(key_j, 0) # 전체
+                        ws[f
