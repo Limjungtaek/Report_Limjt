@@ -74,4 +74,30 @@ if uploaded_file:
                             ws[f'F{row_num}'] = s1_closed_counts.get(key_b, 0)
                     
                     # 오른쪽 영역 (I열 기준 -> J, K, L, M)
-                    key_i = str(ws[f'I{row_num}'].value).strip() if ws[f'I{row_num}'].value else
+                    key_i = str(ws[f'I{row_num}'].value).strip() if ws[f'I{row_num}'].value else ""
+                    if key_i:
+                        ws[f'J{row_num}'] = s2_d_total.get(key_i, 0)
+                        ws[f'K{row_num}'] = s2_d_out.get(key_i, 0)
+                        ws[f'L{row_num}'] = s2_d_hold.get(key_i, 0)
+                        ws[f'M{row_num}'] = s2_d_sum.get(key_i, 0)
+
+                # --- [신규 상세 기입 루프 21~23행] ---
+                for row_num in range(21, 24):
+                    # B열 기준 항목명 읽기
+                    key_b_21 = str(ws[f'B{row_num}'].value).strip() if ws[f'B{row_num}'].value else ""
+                    if key_b_21:
+                        # D열: N열 기준 "출고" 개수
+                        ws[f'D{row_num}'] = s2_n_out.get(key_b_21, 0)
+                        # F열: N열 기준 "보유" 개수
+                        ws[f'F{row_num}'] = s2_n_hold.get(key_b_21, 0)
+                
+                output = io.BytesIO()
+                wb.save(output)
+                output.seek(0)
+                
+                download_name = f"{os.path.splitext(uploaded_file.name)[0]}_Report.xlsx"
+                st.download_button("결과 파일 다운로드", output, download_name)
+            else:
+                st.error("템플릿 파일을 찾을 수 없습니다.")
+        except Exception as e:
+            st.error(f"오류가 발생했습니다: {e}")
