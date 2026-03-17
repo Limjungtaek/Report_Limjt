@@ -3,19 +3,25 @@ import pandas as pd
 from openpyxl import load_workbook
 import os
 import io
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
-st.title("요약보고서 다운로드 서비스")
+st.title("엑셀 데이터 연산 및 다운로드 서비스")
 
 uploaded_file = st.file_uploader("A파일(엑셀)을 업로드하세요", type=["xlsx"])
 
 if uploaded_file:
-    with st.spinner('K21~K23 열의 R열 기준 집계를 추가 중입니다...'):
+    with st.spinner('설치연월 통계를 포함하여 보고서를 생성 중입니다...'):
         try:
             # 1. 인풋 파일 읽기
             df_sheet1 = pd.read_excel(uploaded_file, sheet_name=0, header=None)
             df_sheet2 = pd.read_excel(uploaded_file, sheet_name=1, header=None)
             
             # --- [시트1 집계 로직] ---
+            # 설치연월 집계 (H열은 인덱스 7)
+            install_dates = pd.to_datetime(df_sheet1.iloc[:, 7], errors='coerce')
+            
+            # 시트1 요약용 데이터
             data_s1 = df_sheet1.iloc[:, [3, 4]].copy()
             data_s1.columns = ['status', 'item_name']
             data_s1['status'] = data_s1['status'].astype(str).str.strip()
@@ -25,30 +31,23 @@ if uploaded_file:
             s1_closed_counts = data_s1[data_s1['status'] == '폐업']['item_name'].value_counts()
 
             # --- [시트2 집계 로직] ---
-            # D열(3), N열(13), O열(14), P열(15), R열(17) 추출
             data_s2 = df_sheet2.iloc[:, [3, 13, 14, 15, 17]].copy()
             data_s2.columns = ['item_d', 'item_n', 'sum_value', 'status', 'item_r']
             
-            # 전처리
             for col in ['item_d', 'item_n', 'status', 'item_r']:
                 data_s2[col] = data_s2[col].astype(str).str.strip()
             data_s2['sum_value'] = pd.to_numeric(data_s2['sum_value'], errors='coerce').fillna(0)
             
-            # 문자열 포함 여부 판단 (출고/보유)
             is_out = data_s2['status'].str.contains('출고', na=False)
             is_hold = data_s2['status'].str.contains('보유', na=False)
 
-            # (A) J~M열용 (D열 기준)
             s2_d_total = data_s2['item_d'].value_counts()
             s2_d_out = data_s2[is_out]['item_d'].value_counts()
             s2_d_hold = data_s2[is_hold]['item_d'].value_counts()
             s2_d_sum = data_s2.groupby('item_d')['sum_value'].sum()
 
-            # (B) 21~23행용 (N열 기준)
             s2_n_out = data_s2[is_out]['item_n'].value_counts()
             s2_n_hold = data_s2[is_hold]['item_n'].value_counts()
-            
-            # (C) 21~23행 K열용 (R열 기준) - 신규 추가
             s2_r_counts = data_s2['item_r'].value_counts()
 
             # 2. 템플릿 처리
@@ -87,16 +86,27 @@ if uploaded_file:
 
                 # --- [상세 기입 루프 21~23행] ---
                 for row_num in range(21, 24):
-                    # B열 기준 (D, F열 기입 - 기존 로직)
                     key_b_21 = str(ws[f'B{row_num}'].value).strip() if ws[f'B{row_num}'].value else ""
                     if key_b_21:
                         ws[f'D{row_num}'] = s2_n_out.get(key_b_21, 0)
                         ws[f'F{row_num}'] = s2_n_hold.get(key_b_21, 0)
                     
-                    # I열 기준 (K열 기입 - 신규 로직)
-                    key_i_21 = str(ws[f'I{row_num}'].value).strip() if ws[f'I{row_num}'].value else ""
-                    if key_i_21:
-                        ws[f'K{row_num}'] = s2_r_counts.get(key_i_21, 0)
+                    if row_num < 23:
+                        key_i_21 = str(ws[f'I{row_num}'].value).strip() if ws[f'I{row_num}'].value else ""
+                        if key_i_21:
+                            ws[f'K{row_num}'] = s2_r_counts.get(key_i_21, 0)
+
+                # --- [설치연월 월별 집계 (30행)] ---
+                # 시작월: 2025년 3월
+                start_date = datetime(2025, 3, 1)
+                for i in range(12):
+                    target_month = start_date + relativedelta(months=i)
+                    count = ((install_dates.dt.year == target_month.year) & 
+                             (install_dates.dt.month == target_month.month)).sum()
+                    
+                    # C열(3)부터 시작하여 순차적으로 입력
+                    col_idx = 3 + i 
+                    ws.cell(row=30, column=col_idx).value = count
                 
                 output = io.BytesIO()
                 wb.save(output)
